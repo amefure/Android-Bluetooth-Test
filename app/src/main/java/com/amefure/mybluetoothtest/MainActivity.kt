@@ -3,7 +3,10 @@ package com.amefure.mybluetoothtest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
 import android.content.Context
 import android.widget.Button
 import android.widget.TextView
@@ -17,7 +20,13 @@ class MainActivity : ComponentActivity() {
     private lateinit var sharedPreferencesManager: SharedPreferencesManager
     private lateinit var bleActiveStateManager: BleActiveStateManager
 
-    // bluetoothAdapterの定義
+    /** ペリフェラルデバイスのスキャンを行えるクラス */
+    private var bluetoothLeScanner: BluetoothLeScanner? = null
+    /** スキャン結果のコールバック */
+    private var scanCallback: ScanCallback? = null
+    /** GATT (Generic Attribute Profile) プロトコルを使用してデバイスと通信するためのクラス */
+    private var bluetoothGatt: BluetoothGatt? = null
+    /** Bluetoothの有効状態やペアリング済みデバイスの取得などを行えるクラス */
     private val bluetoothAdapter: BluetoothAdapter? by lazy(LazyThreadSafetyMode.NONE) {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter
@@ -30,13 +39,23 @@ class MainActivity : ComponentActivity() {
         // ローカル保存セットアップ
         sharedPreferencesManager = SharedPreferencesManager(this)
         sharedPreferencesManager.setUp()
+
+        // Bluetooth有効状態を監視
+        observeBleState()
+
+        // UIセットアップ
+        setUpUI()
+    }
+
+    /** Ble有効状態をチェック & 観測 */
+    private fun observeBleState() {
         // Bluetooth有効確認クラス
         bleActiveStateManager = BleActiveStateManager(this, bluetoothAdapter)
 
         // Bluetoothが有効な状態かチェック
         bleActiveStateManager.checking()
 
-        // パーミッションの状態を監視
+        // Bluetooth有効状態を監視
         lifecycleScope.launch {
             bleActiveStateManager.permissionState.collect { state ->
                 when (state) {
@@ -58,7 +77,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        setUpUI()
     }
 
     private fun setUpUI() {
