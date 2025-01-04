@@ -9,7 +9,10 @@ import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/** Bluetoothを使用するためのパーミッションを確認&リクエストするクラス */
+/**
+ *  Bluetoothを使用するためのパーミッションを確認&リクエストするクラス
+ *  https://appdev-room.com/android-bluetooth-permission
+ */
 class BleActiveStateManager(
     private val activity: ComponentActivity,
     private val bluetoothAdapter: BluetoothAdapter?
