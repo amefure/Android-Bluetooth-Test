@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** Bluetoothを使用するためのパーミッションを確認&リクエストするクラス */
-class BlePermissionRequestManager(
+class BleActiveStateManager(
     private val activity: ComponentActivity,
     private val bluetoothAdapter: BluetoothAdapter?
 ) {
@@ -22,8 +22,8 @@ class BlePermissionRequestManager(
     private val checkSupport: Boolean
         get() = bluetoothAdapter?.isEnabled ?: false
 
-    /** パーミッションリクエスト */
-    public fun request() {
+    /** Bluetooth有効状態チェック開始 */
+    public fun checking() {
         // Bluetooth非サポート
         if (!checkSupport) {
             _permissionState.value = BluetoothState.NotSupport
