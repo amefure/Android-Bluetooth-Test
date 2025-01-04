@@ -4,8 +4,12 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -20,12 +24,13 @@ import androidx.lifecycle.lifecycleScope
 import com.amefure.mybluetoothtest.BLE.BleActiveStateManager
 import com.amefure.mybluetoothtest.BLE.BleServiceConfig
 import kotlinx.coroutines.launch
+import java.io.UnsupportedEncodingException
 
 /**
  * ①：Ble有効状態(サポート対象&パーミッション)をチェック
- * ②：スキャン機能の実装
- * ③：
- * ④：
+ * ②：スキャン機能の実装(デバイスアドレスの取得)
+ * ③：接続処理
+ * ④：サービスとキャラクタリスティックの検索を開始
  * ⑤：
  * ⑥：
  */
@@ -151,7 +156,42 @@ class MainActivity : ComponentActivity() {
                 bluetoothLeScanner?.stopScan(scanCallback)
                 // デバイスアドレスを取得(接続処理に必要)
                 val deviceAddress = result.device.address
+                // 接続処理実行
+                connect(deviceAddress)
             }
+        }
+    }
+
+    /** ③ デバイスアドレスを元に接続処理 */
+    private fun connect(address: String) {
+        val device: BluetoothDevice? = bluetoothAdapter?.getRemoteDevice(address)
+
+        if (device == null) {
+            logArea.append("デバイス取得失敗\n")
+            return
+        }
+        logArea.append("対象デバイスと接続開始\n")
+        bluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
+    }
+
+    /** ③ 接続 & 通信コールバック */
+    private val bluetoothGattCallback = object : BluetoothGattCallback() {
+        /** ペリフェラルとの接続状態が変化した際に呼ばれる */
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            // STATE_CONNECTEDなら接続成功
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                logArea.append("接続成功\n")
+                // サービスの検索を開始
+                bluetoothGatt?.discoverServices()
+            }
+        }
+
+        /** サービスが検出された時に呼ばれる */
+        override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+            super.onServicesDiscovered(gatt, status)
+            logArea.append("サービス発見\n")
+            // 対象のサービス(BluetoothGattService)を取得
+            val service: BluetoothGattService = gatt!!.getService(BleServiceConfig.SERVICE_UUID)
         }
     }
 }
