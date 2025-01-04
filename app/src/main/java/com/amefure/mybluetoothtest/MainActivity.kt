@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
@@ -24,7 +25,6 @@ import androidx.lifecycle.lifecycleScope
 import com.amefure.mybluetoothtest.BLE.BleActiveStateManager
 import com.amefure.mybluetoothtest.BLE.BleServiceConfig
 import kotlinx.coroutines.launch
-import java.io.UnsupportedEncodingException
 
 /**
  * ①：Ble有効状態(サポート対象&パーミッション)をチェック
@@ -51,6 +51,11 @@ class MainActivity : ComponentActivity() {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter
     }
+
+    /** ④ キャラクタリスティック */
+    private var readCharacteristic: BluetoothGattCharacteristic? = null
+    private var writeCharacteristic: BluetoothGattCharacteristic? = null
+    private var notifyCharacteristic: BluetoothGattCharacteristic? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -186,12 +191,57 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** サービスが検出された時に呼ばれる */
+        /** ④ サービスが検出された時に呼ばれる */
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             super.onServicesDiscovered(gatt, status)
+            gatt?: return
             logArea.append("サービス発見\n")
             // 対象のサービス(BluetoothGattService)を取得
-            val service: BluetoothGattService = gatt!!.getService(BleServiceConfig.SERVICE_UUID)
+            val service: BluetoothGattService = gatt.getService(BleServiceConfig.SERVICE_UUID)
+            readCharacteristic = service.getCharacteristic(BleServiceConfig.READ_CHARACTERISTIC_UUID)
+            if (readCharacteristic != null) {
+                logArea.append( "Read Characteristic取得成功\n")
+                // TODO: Read処理
+            }
+            writeCharacteristic = service.getCharacteristic(BleServiceConfig.WRITE_CHARACTERISTIC_UUID)
+            if (writeCharacteristic != null) {
+                logArea.append( "Write Characteristic取得成功\n")
+                // TODO: Write処理
+            }
+            val notifyCharacteristic = service.getCharacteristic(BleServiceConfig.NOTIFY_CHARACTERISTIC_UUID)
+            if (notifyCharacteristic != null) {
+                logArea.append( "Notify Characteristic取得成功\n")
+                // TODO: Notifyの有効
+            }
+        }
+
+        /** ④ Readキャラクタリスティック */
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+            status: Int
+        ) {
+            super.onCharacteristicRead(gatt, characteristic, value, status)
+            logArea.append("読み取り成功\n")
+        }
+
+        /** ④ Writeキャラクタリスティック */
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt?,
+            characteristic: BluetoothGattCharacteristic?,
+            status: Int
+        ) {
+            logArea.append("書き込み成功\n")
+        }
+
+        /** ④ Notifyキャラクタリスティック */
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray
+        ) {
+            logArea.append("Notify変化検知\n")
         }
     }
 }
