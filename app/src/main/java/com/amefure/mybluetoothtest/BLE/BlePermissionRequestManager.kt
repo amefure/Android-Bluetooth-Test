@@ -1,19 +1,34 @@
 package com.amefure.mybluetoothtest.BLE
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.content.pm.PackageManager
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /** Bluetoothを使用するためのパーミッションを確認&リクエストするクラス */
 class BlePermissionRequestManager(
-    private val activity: ComponentActivity
+    private val activity: ComponentActivity,
+    private val bluetoothAdapter: BluetoothAdapter?
 ) {
+    /** パーミッションの状態を保持する StateFlow */
+    private val _permissionState = MutableStateFlow<BluetoothState>(BluetoothState.Initial)
+    val permissionState: StateFlow<BluetoothState> = _permissionState
+
+    /** Bluetoothサポートしているかのチェック */
+    private val checkSupport: Boolean
+        get() = bluetoothAdapter?.isEnabled ?: false
 
     /** パーミッションリクエスト */
     public fun request() {
+        // Bluetooth非サポート
+        if (!checkSupport) {
+            _permissionState.value = BluetoothState.NotSupport
+            return
+        }
         // 全ての権限がマニフェスト内で承認済みかチェック
         if (!permissionCheck) {
             // リクエストを投げたいパーミションをまとめる
@@ -22,8 +37,11 @@ class BlePermissionRequestManager(
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.BLUETOOTH_SCAN
             )
-            // リクエスト送信 →　onRequestPermissionsResult
+            // リクエスト送信 → onRequestPermissionsResultコールバック
             launcher.launch(permissions)
+        } else {
+            // 有効
+            _permissionState.value = BluetoothState.Active
         }
     }
 
@@ -43,9 +61,23 @@ class BlePermissionRequestManager(
             val connect = it[Manifest.permission.BLUETOOTH_CONNECT] ?: false
             val scan = it[Manifest.permission.BLUETOOTH_SCAN] ?: false
             if (location && connect && scan) {
-                Toast.makeText(activity, "許可された", Toast.LENGTH_LONG).show()
+                // 有効
+                _permissionState.value = BluetoothState.Active
             } else {
-                Toast.makeText(activity, "否認された", Toast.LENGTH_LONG).show()
+                // 権限否認
+                _permissionState.value = BluetoothState.Denied
             }
         }
+
+    /** パーミッションの状態を表す sealed class */
+    sealed class BluetoothState {
+        /** 初期状態 */
+        object Initial : BluetoothState()
+        /** 有効 */
+        object Active : BluetoothState()
+        /** 初期状態 */
+        object NotSupport : BluetoothState()
+        /** 初期状態 */
+        object Denied : BluetoothState()
+    }
 }
