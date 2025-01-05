@@ -17,6 +17,7 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.os.Build
 import android.os.ParcelUuid
 import android.widget.Button
 import android.widget.TextView
@@ -25,14 +26,14 @@ import androidx.lifecycle.lifecycleScope
 import com.amefure.mybluetoothtest.BLE.BleActiveStateManager
 import com.amefure.mybluetoothtest.BLE.BleServiceConfig
 import kotlinx.coroutines.launch
+import java.io.UnsupportedEncodingException
 
 /**
  * ①：Ble有効状態(サポート対象&パーミッション)をチェック
  * ②：スキャン機能の実装(デバイスアドレスの取得)
  * ③：接続処理
  * ④：サービスとキャラクタリスティックの検索を開始
- * ⑤：
- * ⑥：
+ * ⑤：Read & Write & Notifyキャラクタリスティックを実装
  */
 @SuppressLint("MissingPermission")
 class MainActivity : ComponentActivity() {
@@ -118,6 +119,22 @@ class MainActivity : ComponentActivity() {
         connectButton.setOnClickListener { }
         // ペリフェラルとの切断処理
         disConnectButton.setOnClickListener { }
+
+        val readButton: Button = findViewById(R.id.reed_button)
+        val writeButton: Button = findViewById(R.id.write_button)
+        val notifyButton: Button = findViewById(R.id.notify_button)
+
+        readButton.setOnClickListener {
+            read()
+        }
+
+        writeButton.setOnClickListener {
+            write()
+        }
+
+        notifyButton.setOnClickListener {
+            observeNotify()
+        }
     }
 
 
@@ -201,17 +218,14 @@ class MainActivity : ComponentActivity() {
             readCharacteristic = service.getCharacteristic(BleServiceConfig.READ_CHARACTERISTIC_UUID)
             if (readCharacteristic != null) {
                 logArea.append( "Read Characteristic取得成功\n")
-                // TODO: Read処理
             }
             writeCharacteristic = service.getCharacteristic(BleServiceConfig.WRITE_CHARACTERISTIC_UUID)
             if (writeCharacteristic != null) {
                 logArea.append( "Write Characteristic取得成功\n")
-                // TODO: Write処理
             }
-            val notifyCharacteristic = service.getCharacteristic(BleServiceConfig.NOTIFY_CHARACTERISTIC_UUID)
+            notifyCharacteristic = service.getCharacteristic(BleServiceConfig.NOTIFY_CHARACTERISTIC_UUID)
             if (notifyCharacteristic != null) {
                 logArea.append( "Notify Characteristic取得成功\n")
-                // TODO: Notifyの有効
             }
         }
 
@@ -224,6 +238,17 @@ class MainActivity : ComponentActivity() {
         ) {
             super.onCharacteristicRead(gatt, characteristic, value, status)
             logArea.append("読み取り成功\n")
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                try {
+                    // UTF-8エンコーディングを使用してバイト配列を文字列に変換
+                    val data = String(value, Charsets.UTF_8)
+                    // 変換された文字列を使用
+                    logArea.append("読み取りデータ：${data}\n")
+                } catch (e: UnsupportedEncodingException) {
+                    // エンコーディングがサポートされていない場合の例外処理
+                    e.printStackTrace()
+                }
+            }
         }
 
         /** ④ Writeキャラクタリスティック */
@@ -243,5 +268,43 @@ class MainActivity : ComponentActivity() {
         ) {
             logArea.append("Notify変化検知\n")
         }
+    }
+
+    /** ⑤ Readキャラクタリスティックの実行 */
+    private fun read() {
+        bluetoothGatt?.let { gatt ->
+            logArea.append("Readメソッド実行\n")
+            gatt.readCharacteristic(readCharacteristic)
+        }
+    }
+
+    /** ⑤ Writeキャラクタリスティックの実行 */
+    private fun write() {
+        bluetoothGatt?.let { gatt ->
+            logArea.append("Write実行\n")
+            // 文字列
+            val str = "Hello World"
+
+            try {
+                // UTF-8エンコーディングを使用して文字列をバイト配列に変換
+                val byteData = str.toByteArray(Charsets.UTF_8)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    writeCharacteristic ?: return
+                    gatt.writeCharacteristic(writeCharacteristic, byteData, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+                } else {
+                    writeCharacteristic?.value = byteData
+                    writeCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    gatt.writeCharacteristic(writeCharacteristic)
+                }
+            } catch (e: UnsupportedEncodingException) {
+                // エンコーディングがサポートされていない場合の例外処理
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /** ⑤ Notifyキャラクタリスティックの実行(観測開始) */
+    private fun observeNotify() {
+        bluetoothGatt?.setCharacteristicNotification(notifyCharacteristic, true)
     }
 }
