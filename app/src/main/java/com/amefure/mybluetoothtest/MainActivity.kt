@@ -116,9 +116,19 @@ class MainActivity : ComponentActivity() {
             startScan()
         }
         // ペリフェラルとの接続処理
-        connectButton.setOnClickListener { }
+        connectButton.setOnClickListener {
+            val deviceAddress = sharedPreferencesManager.fetch(SharedPreferencesManager.ADDRESS_KEY)
+            if (deviceAddress != null) {
+                connect(deviceAddress)
+            } else {
+                logArea.append("スキャンしてデバイスアドレスを取得してください\n")
+            }
+
+        }
         // ペリフェラルとの切断処理
-        disConnectButton.setOnClickListener { }
+        disConnectButton.setOnClickListener {
+            disconnect()
+        }
 
         val readButton: Button = findViewById(R.id.reed_button)
         val writeButton: Button = findViewById(R.id.write_button)
@@ -178,8 +188,9 @@ class MainActivity : ComponentActivity() {
                 bluetoothLeScanner?.stopScan(scanCallback)
                 // デバイスアドレスを取得(接続処理に必要)
                 val deviceAddress = result.device.address
-                // 接続処理実行
-                connect(deviceAddress)
+                // ローカルにデバイスアドレスを保存
+                sharedPreferencesManager.save(SharedPreferencesManager.ADDRESS_KEY, deviceAddress)
+                logArea.append( "スキャン停止\n")
             }
         }
     }
@@ -237,8 +248,8 @@ class MainActivity : ComponentActivity() {
             status: Int
         ) {
             super.onCharacteristicRead(gatt, characteristic, value, status)
-            logArea.append("読み取り成功\n")
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                logArea.append("読み取り成功\n")
                 try {
                     // UTF-8エンコーディングを使用してバイト配列を文字列に変換
                     val data = String(value, Charsets.UTF_8)
@@ -248,6 +259,8 @@ class MainActivity : ComponentActivity() {
                     // エンコーディングがサポートされていない場合の例外処理
                     e.printStackTrace()
                 }
+            } else {
+                logArea.append("読み取り失敗\n")
             }
         }
 
@@ -257,7 +270,11 @@ class MainActivity : ComponentActivity() {
             characteristic: BluetoothGattCharacteristic?,
             status: Int
         ) {
-            logArea.append("書き込み成功\n")
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                logArea.append("書き込み成功\n")
+            } else {
+                logArea.append("書き込み失敗\n")
+            }
         }
 
         /** ④ Notifyキャラクタリスティック */
@@ -265,6 +282,13 @@ class MainActivity : ComponentActivity() {
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray
+        ) {
+            logArea.append("Notify変化検知\n")
+        }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
         ) {
             logArea.append("Notify変化検知\n")
         }
@@ -290,7 +314,7 @@ class MainActivity : ComponentActivity() {
                 val byteData = str.toByteArray(Charsets.UTF_8)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     writeCharacteristic ?: return
-                    gatt.writeCharacteristic(writeCharacteristic, byteData, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+                    gatt.writeCharacteristic(writeCharacteristic!!, byteData, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
                 } else {
                     writeCharacteristic?.value = byteData
                     writeCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
@@ -305,6 +329,19 @@ class MainActivity : ComponentActivity() {
 
     /** ⑤ Notifyキャラクタリスティックの実行(観測開始) */
     private fun observeNotify() {
-        bluetoothGatt?.setCharacteristicNotification(notifyCharacteristic, true)
+        bluetoothGatt?.let { gatt ->
+            logArea.append("Notify観測開始\n")
+            gatt.setCharacteristicNotification(notifyCharacteristic, true)
+        }
+    }
+
+    private fun disconnect() {
+        // デバイスとの接続を解除
+        bluetoothGatt?.disconnect()
+        // リソースを解放
+        bluetoothGatt?.close()
+        // GATTインスタンスをクリア
+        bluetoothGatt = null
+        logArea.text = "切断\n"
     }
 }
