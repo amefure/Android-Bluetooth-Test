@@ -223,7 +223,7 @@ class MainActivity : ComponentActivity() {
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             super.onServicesDiscovered(gatt, status)
             gatt?: return
-            logArea.append("サービス発見\n")
+            logArea.append("サービス発見：${gatt.services.size}個 \n")
             // 対象のサービス(BluetoothGattService)を取得
             val service: BluetoothGattService = gatt.getService(BleServiceConfig.SERVICE_UUID)
             readCharacteristic = service.getCharacteristic(BleServiceConfig.READ_CHARACTERISTIC_UUID)
@@ -282,13 +282,6 @@ class MainActivity : ComponentActivity() {
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray
-        ) {
-            logArea.append("Notify変化検知\n")
-        }
-
-        override fun onCharacteristicChanged(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic
         ) {
             logArea.append("Notify変化検知\n")
         }
