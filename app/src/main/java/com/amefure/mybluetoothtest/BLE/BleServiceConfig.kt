@@ -8,6 +8,7 @@ import java.util.UUID
  * https://github.com/amefure/iOS-Bluetooth-App/blob/main/MyBluetoothTest/CoreBLE/BluePeripheralManager.swift#L35
  */
 object BleServiceConfig {
+    val PERIPHERAL_NAME: String = "Test Peripheral"
     val SERVICE_UUID: UUID = UUID.fromString("00000000-0000-1111-1111-111111111111")
     val READ_CHARACTERISTIC_UUID: UUID = UUID.fromString("00000000-1111-1111-1111-111111111111")
     val WRITE_CHARACTERISTIC_UUID: UUID = UUID.fromString("00000000-2222-1111-1111-111111111111")

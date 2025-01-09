@@ -117,13 +117,15 @@ class MainActivity : ComponentActivity() {
         }
         // ペリフェラルとの接続処理
         connectButton.setOnClickListener {
-            val deviceAddress = sharedPreferencesManager.fetch(SharedPreferencesManager.ADDRESS_KEY)
+            // ローカル保存したアドレスを取得
+            // val deviceAddress = sharedPreferencesManager.fetch(SharedPreferencesManager.ADDRESS_KEY)
+            // ボンディング済みデバイスからデバイスアドレスを取得
+            val deviceAddress = bluetoothAdapter?.bondedDevices?.firstOrNull { it.name == BleServiceConfig.PERIPHERAL_NAME }?.address
             if (deviceAddress != null) {
                 connect(deviceAddress)
             } else {
-                logArea.append("スキャンしてデバイスアドレスを取得してください\n")
+                logArea.append("スキャン&ペアリングしてデバイスアドレスを取得してください\n")
             }
-
         }
         // ペリフェラルとの切断処理
         disConnectButton.setOnClickListener {
@@ -183,13 +185,15 @@ class MainActivity : ComponentActivity() {
                 super.onScanResult(callbackType, result)
                 result.device ?: return
                 // ペリフェラルデバイスが発見された
-                logArea.append( "デバイス「${result.device.name}」を検出\n")
+                logArea.append( "デバイス「${result.device.name}」「${result.device.address}」を検出\n")
                 // スキャンの停止
                 bluetoothLeScanner?.stopScan(scanCallback)
                 // デバイスアドレスを取得(接続処理に必要)
                 val deviceAddress = result.device.address
                 // ローカルにデバイスアドレスを保存
-                sharedPreferencesManager.save(SharedPreferencesManager.ADDRESS_KEY, deviceAddress)
+                // sharedPreferencesManager.save(SharedPreferencesManager.ADDRESS_KEY, deviceAddress)
+                // 対象機器とボンディングする
+                result.device.createBond()
                 logArea.append( "スキャン停止\n")
             }
         }
@@ -198,7 +202,6 @@ class MainActivity : ComponentActivity() {
     /** ③ デバイスアドレスを元に接続処理 */
     private fun connect(address: String) {
         val device: BluetoothDevice? = bluetoothAdapter?.getRemoteDevice(address)
-
         if (device == null) {
             logArea.append("デバイス取得失敗\n")
             return
