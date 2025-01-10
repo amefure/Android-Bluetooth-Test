@@ -16,7 +16,10 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.ParcelUuid
 import android.widget.Button
@@ -71,6 +74,13 @@ class MainActivity : ComponentActivity() {
 
         // UIセットアップ
         setUpUI()
+
+        // ボンディング状態の変化をBroadcastで受け取るためのIntentFilter
+        val bondStateFilter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        }
+        // レシーバーをセット
+        registerReceiver(bondingBroadcastReceiver, bondStateFilter)
     }
 
     /** ① Ble有効状態をチェック & 観測 */
@@ -339,5 +349,43 @@ class MainActivity : ComponentActivity() {
         // GATTインスタンスをクリア
         bluetoothGatt = null
         logArea.text = "切断\n"
+    }
+
+    /** ボンディング状態が変化した際に取得できるBroadcast */
+    private val bondingBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            context ?: return
+            val action = intent?.action ?: return
+            when (action) {
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                    logArea.append("ボンディングBroadcast取得")
+                    // ボンディング対象デバイスを取得する
+                    val device =
+                        intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                            ?: return
+                    logArea.append("${device.address}")
+                    val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, 0)
+                    // ボンディング状態を識別
+                    when (bondState) {
+                        BluetoothDevice.BOND_BONDED -> {
+                            logArea.append("ボンディング成功")
+                        }
+
+                        BluetoothDevice.BOND_BONDING -> {
+                            logArea.append("ボンディング中")
+                        }
+
+                        BluetoothDevice.BOND_NONE -> {
+                            logArea.append("ボンディング失敗(キャンセル)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(bondingBroadcastReceiver)
     }
 }
